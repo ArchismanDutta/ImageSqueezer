@@ -1,10 +1,9 @@
-# app.py
-
-from flask import Flask, render_template, request, send_from_directory
+from flask import Flask, render_template, request, send_from_directory, flash, redirect, url_for
 from downloader import extract_image_urls_from_website, download_image, ensure_directory, SAVE_DIR
 import os
 
 app = Flask(__name__)
+app.secret_key = "supersecretkey"  # Needed for flashing messages
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -15,16 +14,31 @@ def index():
         url = request.form.get("url")
         if url:
             ensure_directory(SAVE_DIR)
-            image_urls = extract_image_urls_from_website(url)
-            for i, img_url in enumerate(image_urls, start=1):
-                if download_image(img_url, i):
-                    images.append(f"image_{i}.webp")  # assumes .webp fallback or update logic to detect correct ext
+
+            try:
+                image_urls = extract_image_urls_from_website(url)
+            except Exception as e:
+                flash(f"Error fetching images: {e}", "danger")
+                return redirect(url_for('index'))
+
+            if not image_urls:
+                flash("No images found on the page.", "warning")
+            else:
+                for i, img_url in enumerate(image_urls, start=1):
+                    filename = download_image(img_url, i)
+                    if filename:
+                        images.append(filename)
+
+                if not images:
+                    flash("No valid images could be downloaded.", "warning")
+                else:
+                    flash(f"✅ Downloaded {len(images)} image(s).", "success")
+        else:
+            flash("Please enter a valid URL.", "warning")
 
     return render_template("index.html", images=images, url=url)
-    print("📩 Request method:", request.method)
 
-
-@app.route("/images/<filename>")
+@app.route("/images/<path:filename>")
 def serve_image(filename):
     return send_from_directory(SAVE_DIR, filename)
 

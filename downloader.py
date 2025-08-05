@@ -17,17 +17,35 @@ HEADERS = {
 def ensure_directory(path):
     os.makedirs(path, exist_ok=True)
 
+# Normalize extension if needed (e.g. .jpe -> .jpg)
+def normalize_extension(ext):
+    if ext == ".jpe":
+        return ".jpg"
+    return ext
+
 # Guess file extension based on content-type
 def get_file_extension(content_type):
     extension = mimetypes.guess_extension(content_type)
-    return extension if extension else ".img"
+    return normalize_extension(extension) if extension else ".webp"
 
 # Validate the image type
 def is_valid_image_type(content_type):
     return content_type.split(";")[0] in VALID_IMAGE_TYPES
 
+# Avoid overwriting existing files
+def get_unique_filename(base_path, filename):
+    name, ext = os.path.splitext(filename)
+    counter = 1
+    new_filename = filename
+    while os.path.exists(os.path.join(base_path, new_filename)):
+        new_filename = f"{name}_{counter}{ext}"
+        counter += 1
+    return new_filename
+
 # Download a single image
 def download_image(url, count):
+    ensure_directory(SAVE_DIR)
+
     try:
         response = requests.get(url, stream=True, headers=HEADERS, timeout=10)
         response.raise_for_status()
@@ -41,11 +59,11 @@ def download_image(url, count):
             print("⚠️  No Content-Type. Assuming .webp")
         elif not is_valid_image_type(content_type):
             print(f"⚠️  Skipping: Not a recognized image (Content-Type: {content_type})")
-            return False
+            return None
         else:
             ext = get_file_extension(content_type)
 
-        filename = f"image_{count}{ext}"
+        filename = get_unique_filename(SAVE_DIR, f"image_{count}{ext}")
         filepath = os.path.join(SAVE_DIR, filename)
 
         with open(filepath, "wb") as f:
@@ -53,11 +71,11 @@ def download_image(url, count):
                 f.write(chunk)
 
         print(f"✅ Saved: {filepath}")
-        return True
+        return filename
 
     except requests.exceptions.RequestException as e:
         print(f"❌ Failed to download {url}:\n   {e}")
-        return False
+        return None
 
 # Extract all image URLs from a given webpage
 def extract_image_urls_from_website(website_url):
