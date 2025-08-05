@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Image Downloader</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Website Image Downloader</h1>
+    <form method="post">
+      <input type="text" name="url" placeholder="Enter website URL..." required>
+      <button type="submit">Download</button>
+    </form>
+
+    {% if images %}
+      <h2>Downloaded Images:</h2>
+      <div class="gallery">
+        {% for image in images %}
+          <img src="{{ url_for('serve_image', filename=image) }}" alt="image">
+        {% endfor %}
+      </div>
+    {% elif url %}
+      <p>No images found at {{ url }}</p>
+    {% endif %}
+  </div>
+</body>
+</html>
